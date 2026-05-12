@@ -8,27 +8,19 @@ function typeSlug(t: Criteria["propertyType"]): string {
   return "house,flat";
 }
 
-// Realo uses "<city>-<postcode>" slugs.
-const POSTAL_TO_SLUG: Record<string, string> = {
-  "8000": "brugge-8000",
-  "8200": "brugge-8200",
-  "8310": "brugge-8310",
-  "8380": "brugge-8380",
-};
-
 export const realoScraper: Scraper = {
   name: "realo",
   async fetch(criteria: Criteria): Promise<Listing[]> {
-    const slugs = criteria.postalCodes
-      .map((p) => POSTAL_TO_SLUG[p])
-      .filter(Boolean);
-    if (slugs.length === 0) return [];
+    // Realo accepts bare postcodes in the URL slot, so works for any Belgian postcode
+    // without needing a postcode-to-city map. E.g. /for-rent/9000 == /for-rent/gent-9000.
+    const postcodes = criteria.postalCodes.filter((p) => /^\d{4}$/.test(p));
+    if (postcodes.length === 0) return [];
 
     const out: Listing[] = [];
     const seen = new Set<string>();
     const types = typeSlug(criteria.propertyType);
 
-    for (const slug of slugs) {
+    for (const slug of postcodes) {
       const url = `https://www.realo.be/en/search/${types}/for-rent/${slug}?priceMax=${criteria.maxPrice}`;
       try {
         const res = await fetch(url, {
